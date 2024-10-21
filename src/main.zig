@@ -91,7 +91,7 @@ fn listenForClient(server: *net.Server) !net.Server.Connection {
 pub fn main() !void {
     const addr = try net.Address.parseIp("127.0.0.1", 6379);
 
-    var server: net.Server = try net.Address.listen(addr, .{});
+    var server: net.Server = try net.Address.listen(addr, .{ .reuse_address = true });
     defer server.deinit();
 
     while (true) {
