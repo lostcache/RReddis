@@ -39,7 +39,7 @@ fn checkTokenLen(token: []const u8, cmdLen: usize) CommandParseError!void {
     return;
 }
 
-fn getResponse(tokens: *mem.TokenIterator(u8, .sequence), tokenCount: *const usize, map: *std.StringHashMap([]const u8)) ![]const u8 {
+fn getResponse(tokens: *mem.TokenIterator(u8, .sequence), tokenCount: *const usize, map: *std.StringHashMap([]const u8), alloc: *mem.Allocator) ![]const u8 {
     var processedTokens: usize = 0;
     while (processedTokens < tokenCount.*) {
         var headerToken: []const u8 = try getNextToken(tokens, &processedTokens, tokenCount);
@@ -63,14 +63,16 @@ fn getResponse(tokens: *mem.TokenIterator(u8, .sequence), tokenCount: *const usi
             const valLen = try getCmdLen(valHeader);
             const val = try getNextToken(tokens, &processedTokens, tokenCount);
             try checkTokenLen(val, valLen);
-            map.put(key, val) catch return "-ERROR\r\n";
-            return "+OK";
+            const val_cpy = try alloc.*.dupe(u8, val);
+            map.*.put(key, val_cpy) catch return "-ERROR\r\n";
+            print("map: {s}\n", .{map.*.get("lol").?});
+            return "OK";
         } else if (std.ascii.eqlIgnoreCase(token, "GET")) {
             const keyHeader = try getNextToken(tokens, &processedTokens, tokenCount);
             const keyLen = try getCmdLen(keyHeader);
             const key = try getNextToken(tokens, &processedTokens, tokenCount);
             try checkTokenLen(key, keyLen);
-            const maybeVal = map.get(key);
+            const maybeVal = map.*.get(key);
             if (maybeVal == null) {
                 return "$-1";
             }
@@ -81,22 +83,20 @@ fn getResponse(tokens: *mem.TokenIterator(u8, .sequence), tokenCount: *const usi
 }
 
 const RequestParseError = HeaderParseError || error{InvalidRequest} || CommandParseError;
-fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8)) RequestParseError![]const u8 {
+fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8), alloc: *mem.Allocator) RequestParseError![]const u8 {
     var tokens: mem.TokenIterator(u8, .sequence) = tokenizeReq(req);
     const cmdCount = try parseHeader(tokens.next());
     const tokenCount = cmdCount * 2;
-    return getResponse(&tokens, &tokenCount, map) catch return "-ERROR\r\n";
+    return getResponse(&tokens, &tokenCount, map, alloc) catch return "-ERROR\r\n";
 }
 
-fn handleClient(conn: net.Server.Connection, alloc: *mem.Allocator) !void {
+fn handleClient(conn: net.Server.Connection, map: *std.StringHashMap([]const u8), alloc: *mem.Allocator) !void {
     defer conn.stream.close();
-    var map = std.StringHashMap([]const u8).init(alloc.*);
-    defer map.deinit();
     while (true) {
         var req: [512]u8 = undefined;
         const bytesRead = try readFromStream(conn, &req);
         if (bytesRead == 0) break;
-        const res = handleRequest(&req, &map) catch |err| {
+        const res = handleRequest(&req, map, alloc) catch |err| {
             print("Error: {any}", .{err});
             _ = try conn.stream.write("-ERROR\r\n");
             return;
@@ -121,9 +121,12 @@ pub fn main() !void {
     var server: net.Server = try net.Address.listen(addr, .{ .reuse_address = true });
     defer server.deinit();
 
+    var map = std.StringHashMap([]const u8).init(alloc);
+    defer map.deinit();
+
     while (true) {
         const clientConn: net.Server.Connection = try listenForClient(&server);
-        const thread = try std.Thread.spawn(.{}, handleClient, .{ clientConn, &alloc });
+        const thread = try std.Thread.spawn(.{}, handleClient, .{ clientConn, &map, &alloc });
         thread.detach();
     }
 }
