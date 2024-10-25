@@ -3,7 +3,7 @@ const net = std.net;
 const mem = std.mem;
 const print = std.debug.print;
 
-fn readFromStream(conn: net.Server.Connection, buf: *[512]u8) !usize {
+fn readFromStream(conn: *net.Server.Connection, buf: *[512]u8) !usize {
     return try conn.stream.read(buf);
 }
 
@@ -90,7 +90,7 @@ fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8), alloc: *mem
     return getResponse(&tokens, &tokenCount, map, alloc) catch return "-ERROR\r\n";
 }
 
-fn handleClient(conn: net.Server.Connection, map: *std.StringHashMap([]const u8), alloc: *mem.Allocator) !void {
+fn handleClient(conn: *net.Server.Connection, map: *std.StringHashMap([]const u8), alloc: *mem.Allocator) !void {
     defer conn.stream.close();
     while (true) {
         var req: [512]u8 = undefined;
@@ -125,8 +125,8 @@ pub fn main() !void {
     defer map.deinit();
 
     while (true) {
-        const clientConn: net.Server.Connection = try listenForClient(&server);
-        const thread = try std.Thread.spawn(.{}, handleClient, .{ clientConn, &map, &alloc });
+        var clientConn: net.Server.Connection = try listenForClient(&server);
+        const thread = try std.Thread.spawn(.{}, handleClient, .{ &clientConn, &map, &alloc });
         thread.detach();
     }
 }
@@ -137,4 +137,41 @@ test "test parseHeader" {
     try t.expectError(HeaderParseError.HeaderParseError, parseHeader("abc"));
     try t.expectEqual(123, parseHeader("*123"));
     try t.expectError(HeaderParseError.InvalidCharacter, parseHeader("*abc"));
+}
+
+test "readFromStream returns correct data length" {
+    // Using a mock stream to simulate connection stream
+    const mock_stream = std.io.fixedBufferStream(&[_]u8{ 1, 2, 3, 4, 5 });
+    const conn = net.Server.Connection{
+        .stream = mock_stream.buffer,
+    };
+
+    var buf: [512]u8 = undefined;
+    const result = readFromStream(conn, &buf) catch |err| switch (err) {
+        error.EndOfStream => 0,
+        else => return std.testing.expect(false),
+    };
+
+    try std.testing.expectEqual(@as(usize, 5), result);
+    try std.testing.expectEqual(buf[0], 1);
+    try std.testing.expectEqual(buf[1], 2);
+    try std.testing.expectEqual(buf[2], 3);
+    try std.testing.expectEqual(buf[3], 4);
+    try std.testing.expectEqual(buf[4], 5);
+}
+
+test "readFromStream handles empty stream" {
+    // Using an empty mock stream to simulate end of connection stream
+    const mock_stream = std.io.fixedBufferStream(&[_]u8{});
+    const conn = net.Server.Connection{
+        .stream = mock_stream.buffer,
+    };
+
+    var buf: [512]u8 = undefined;
+    const result = readFromStream(conn, &buf) catch |err| switch (err) {
+        error.EndOfStream => 0,
+        else => return std.testing.expect(false),
+    };
+
+    try std.testing.expectEqual(@as(usize, 0), result);
 }
