@@ -3,10 +3,6 @@ const net = std.net;
 const mem = std.mem;
 const print = std.debug.print;
 
-fn tokenizeReq(buf: *[512]u8) mem.TokenIterator(u8, .sequence) {
-    return mem.tokenizeSequence(u8, buf, "\r\n");
-}
-
 const HeaderParseError = error{ Overflow, InvalidCharacter, MissingHeader, HeaderParseError };
 fn parseHeader(maybeToken: ?[]const u8) HeaderParseError!usize {
     if (maybeToken == null) return error.MissingHeader;
@@ -80,7 +76,7 @@ fn getResponse(tokens: *mem.TokenIterator(u8, .sequence), tokenCount: *const usi
 
 const RequestParseError = HeaderParseError || error{InvalidRequest} || CommandParseError;
 fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8), alloc: *mem.Allocator) RequestParseError![]const u8 {
-    var tokens: mem.TokenIterator(u8, .sequence) = tokenizeReq(req);
+    var tokens: mem.TokenIterator(u8, .sequence) = mem.tokenizeSequence(u8, req, "\r\n");
     const cmdCount = try parseHeader(tokens.next());
     const tokenCount = cmdCount * 2;
     return getResponse(&tokens, &tokenCount, map, alloc) catch return "-ERROR\r\n";
