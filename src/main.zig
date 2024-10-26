@@ -45,8 +45,7 @@ fn getResponse(tokens: *std.mem.TokenIterator(u8, .sequence), tokenCount: *const
     return "-ERROR\r\n";
 }
 
-const RequestParseError = utils.HeaderParseError || error{InvalidRequest} || utils.CommandParseError;
-fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) RequestParseError![]const u8 {
+fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) utils.RequestSyntaxError![]const u8 {
     var tokens: std.mem.TokenIterator(u8, .sequence) = std.mem.tokenizeSequence(u8, req, "\r\n");
     const cmdCount = try utils.parseHeader(tokens.next());
     const tokenCount = cmdCount * 2;
