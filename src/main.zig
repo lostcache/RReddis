@@ -3,10 +3,6 @@ const net = std.net;
 const mem = std.mem;
 const print = std.debug.print;
 
-fn readFromStream(conn: *net.Server.Connection, buf: *[512]u8) !usize {
-    return try conn.stream.read(buf);
-}
-
 fn tokenizeReq(buf: *[512]u8) mem.TokenIterator(u8, .sequence) {
     return mem.tokenizeSequence(u8, buf, "\r\n");
 }
@@ -94,7 +90,7 @@ fn handleClient(conn: *net.Server.Connection, map: *std.StringHashMap([]const u8
     defer conn.stream.close();
     while (true) {
         var req: [512]u8 = undefined;
-        const bytesRead = try readFromStream(conn, &req);
+        const bytesRead = try conn.stream.read(&req);
         if (bytesRead == 0) break;
         const res = handleRequest(&req, map, alloc) catch |err| {
             print("Error: {any}", .{err});
@@ -137,41 +133,4 @@ test "test parseHeader" {
     try t.expectError(HeaderParseError.HeaderParseError, parseHeader("abc"));
     try t.expectEqual(123, parseHeader("*123"));
     try t.expectError(HeaderParseError.InvalidCharacter, parseHeader("*abc"));
-}
-
-test "readFromStream returns correct data length" {
-    // Using a mock stream to simulate connection stream
-    const mock_stream = std.io.fixedBufferStream(&[_]u8{ 1, 2, 3, 4, 5 });
-    const conn = net.Server.Connection{
-        .stream = mock_stream.buffer,
-    };
-
-    var buf: [512]u8 = undefined;
-    const result = readFromStream(conn, &buf) catch |err| switch (err) {
-        error.EndOfStream => 0,
-        else => return std.testing.expect(false),
-    };
-
-    try std.testing.expectEqual(@as(usize, 5), result);
-    try std.testing.expectEqual(buf[0], 1);
-    try std.testing.expectEqual(buf[1], 2);
-    try std.testing.expectEqual(buf[2], 3);
-    try std.testing.expectEqual(buf[3], 4);
-    try std.testing.expectEqual(buf[4], 5);
-}
-
-test "readFromStream handles empty stream" {
-    // Using an empty mock stream to simulate end of connection stream
-    const mock_stream = std.io.fixedBufferStream(&[_]u8{});
-    const conn = net.Server.Connection{
-        .stream = mock_stream.buffer,
-    };
-
-    var buf: [512]u8 = undefined;
-    const result = readFromStream(conn, &buf) catch |err| switch (err) {
-        error.EndOfStream => 0,
-        else => return std.testing.expect(false),
-    };
-
-    try std.testing.expectEqual(@as(usize, 0), result);
 }
