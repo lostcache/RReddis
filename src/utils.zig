@@ -93,3 +93,14 @@ test "test getNextToken" {
     const result = getNextToken(&tokenizer, &processedTokens, &tokenCount);
     try std.testing.expectError(error.InvalidRequest, result);
 }
+
+test "test checkTokenLen" {
+    var token = "command";
+    var cmdLen = 7;
+    try checkTokenLen(token, cmdLen);
+
+    token = "command";
+    cmdLen = 6;
+    const err = checkTokenLen(token, cmdLen) catch |e| e;
+    try std.testing.expect(err == error.InvalidCommand);
+}
