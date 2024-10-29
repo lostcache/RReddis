@@ -36,43 +36,35 @@ test "test parseHeader" {
     try t.expectError(RequestSyntaxError.InvalidCharacter, parseHeader("*abc"));
 }
 
-test "getCmdLen returns correct length for valid command header" {
-    const cmdHeader = "$5";
+test "getCmdLen" {
+    var cmdHeader = "$5";
     const expectedLength = 5;
-    const result = getCmdLen(cmdHeader) catch unreachable;
+    var result = getCmdLen(cmdHeader) catch unreachable;
     try std.testing.expect(result == expectedLength);
-}
 
-test "getCmdLen returns error for invalid command header" {
-    const cmdHeader = "5";
-    const result = getCmdLen(cmdHeader);
+    cmdHeader = "5";
+    result = getCmdLen(cmdHeader);
     switch (result) {
         error.InvalidCommand => {},
         else => std.testing.expect(false, "Expected error.InvalidCommand"),
     }
-}
 
-test "getCmdLen returns error for non-numeric command length" {
-    const cmdHeader = "$abc";
-    const result = getCmdLen(cmdHeader);
+    cmdHeader = "$abc";
+    result = getCmdLen(cmdHeader);
     switch (result) {
         error.InvalidCommand => {},
         else => std.testing.expect(false, "Expected error.InvalidCommand"),
     }
-}
 
-test "getCmdLen returns error for empty command header" {
-    const cmdHeader = "";
-    const result = getCmdLen(cmdHeader);
+    cmdHeader = "";
+    result = getCmdLen(cmdHeader);
     switch (result) {
         error.InvalidCommand => {},
         else => std.testing.expect(false, "Expected error.InvalidCommand"),
     }
-}
 
-test "getCmdLen returns correct length for multi-digit command header" {
-    const cmdHeader = "$123";
-    const expectedLength = 123;
-    const result = getCmdLen(cmdHeader) catch unreachable;
+    cmdHeader = "$123";
+    expectedLength = 123;
+    result = getCmdLen(cmdHeader) catch unreachable;
     try std.testing.expect(result == expectedLength);
 }
