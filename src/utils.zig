@@ -68,3 +68,28 @@ test "getCmdLen" {
     result = getCmdLen(cmdHeader) catch unreachable;
     try std.testing.expect(result == expectedLength);
 }
+
+test "test getNextToken" {
+    var text = "token1 token2 token3";
+    const buffer = text[0..];
+
+    var tokenizer = std.mem.tokenize(buffer, " ");
+    var processedTokens: usize = 0;
+    const tokenCount: usize = 3;
+
+    // Test first token
+    const token1 = getNextToken(&tokenizer, &processedTokens, &tokenCount) catch unreachable;
+    try std.testing.expect(std.mem.eql(u8, token1, "token1"));
+
+    // Test second token
+    const token2 = getNextToken(&tokenizer, &processedTokens, &tokenCount) catch unreachable;
+    try std.testing.expect(std.mem.eql(u8, token2, "token2"));
+
+    // Test third token
+    const token3 = getNextToken(&tokenizer, &processedTokens, &tokenCount) catch unreachable;
+    try std.testing.expect(std.mem.eql(u8, token3, "token3"));
+
+    // Test no more tokens
+    const result = getNextToken(&tokenizer, &processedTokens, &tokenCount);
+    try std.testing.expectError(error.InvalidRequest, result);
+}
