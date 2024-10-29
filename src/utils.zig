@@ -51,32 +51,20 @@ test "getCmdLen" {
     try std.testing.expect(result1 == expectedLength);
 
     const cmdHeader2 = "5";
-    if (getCmdLen(cmdHeader2)) |_| {
-        try std.testing.expect(false);
-    } else |err| {
-        try std.testing.expect(err == error.InvalidCommand);
-    }
+    const cmdLen2 = getCmdLen(cmdHeader2) catch |err| err;
+    try std.testing.expect(cmdLen2 == error.InvalidCommand);
 
     const cmdHeader3 = "$abc";
-    if (getCmdLen(cmdHeader3)) |_| {
-        try std.testing.expect(false);
-    } else |err| {
-        try std.testing.expect(err == error.InvalidCommand);
-    }
+    const cmdLen3 = getCmdLen(cmdHeader3) catch |err| err;
+    try std.testing.expect(cmdLen3 == error.InvalidCommand);
 
     const cmdHeader4 = "";
-    if (getCmdLen(cmdHeader4)) |_| {
-        try std.testing.expect(false);
-    } else |err| {
-        try std.testing.expect(err == error.InvalidCommand);
-    }
+    const cmdLen4 = getCmdLen(cmdHeader4) catch |err| err;
+    try std.testing.expect(cmdLen4 == error.InvalidCommand);
 
     const cmdHeader5 = "$123";
-    if (getCmdLen(cmdHeader5)) |val| {
-        try std.testing.expect(val == 123);
-    } else |_| {
-        try std.testing.expect(false);
-    }
+    const cmdLen5 = getCmdLen(cmdHeader5) catch unreachable;
+    try std.testing.expect(cmdLen5 == 123);
 }
 
 test "test getNextToken" {
@@ -86,19 +74,15 @@ test "test getNextToken" {
     var tokenizer = std.mem.tokenizeSequence(u8, buffer, " ");
     var processedTokens: usize = 0;
 
-    // Test first token
     const token1 = getNextToken(&tokenizer, &processedTokens) catch unreachable;
     try std.testing.expect(std.mem.eql(u8, token1, "token1"));
 
-    // Test second token
     const token2 = getNextToken(&tokenizer, &processedTokens) catch unreachable;
     try std.testing.expect(std.mem.eql(u8, token2, "token2"));
 
-    // Test third token
     const token3 = getNextToken(&tokenizer, &processedTokens) catch unreachable;
     try std.testing.expect(std.mem.eql(u8, token3, "token3"));
 
-    // Test no more tokens
     const result = getNextToken(&tokenizer, &processedTokens);
     try std.testing.expectError(error.InvalidRequest, result);
 }
