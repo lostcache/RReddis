@@ -113,3 +113,10 @@ test "test checkTokenLen" {
     const err = checkTokenLen(token, cmdLen) catch |e| e;
     try std.testing.expect(err == error.InvalidCommand);
 }
+
+test "test handleECHOReq" {
+    var tokens1 = std.mem.tokenizeSequence(u8, "$3 123", " ");
+    var processedTokens1: usize = 0;
+    const result1 = try handleECHOReq(&tokens1, &processedTokens1);
+    try std.testing.expectEqualStrings("123", result1);
+}
