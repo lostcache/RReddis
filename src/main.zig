@@ -5,35 +5,30 @@ const utils = @import("utils.zig");
 fn getResponse(tokens: *std.mem.TokenIterator(u8, .sequence), tokenCount: *const usize, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) ![]const u8 {
     var processedTokens: usize = 0;
     while (processedTokens < tokenCount.*) {
-        var headerToken: []const u8 = try utils.getNextToken(tokens, &processedTokens, tokenCount);
-        var tokenLen: usize = try utils.getCmdLen(headerToken);
-        var token: []const u8 = try utils.getNextToken(tokens, &processedTokens, tokenCount);
+        const headerToken: []const u8 = try utils.getNextToken(tokens, &processedTokens);
+        const tokenLen: usize = try utils.getCmdLen(headerToken);
+        const token: []const u8 = try utils.getNextToken(tokens, &processedTokens);
         try utils.checkTokenLen(token, tokenLen);
         if (std.ascii.eqlIgnoreCase(token, "PING")) {
             return "PONG";
         } else if (std.ascii.eqlIgnoreCase(token, "ECHO")) {
-            headerToken = try utils.getNextToken(tokens, &processedTokens, tokenCount);
-            tokenLen = try utils.getCmdLen(headerToken);
-            token = try utils.getNextToken(tokens, &processedTokens, tokenCount);
-            try utils.checkTokenLen(token, tokenLen);
-            return token;
+            return try utils.handleECHOReq(tokens, &processedTokens);
         } else if (std.ascii.eqlIgnoreCase(token, "SET")) {
-            const keyHeader = try utils.getNextToken(tokens, &processedTokens, tokenCount);
+            const keyHeader = try utils.getNextToken(tokens, &processedTokens);
             const keyLen = try utils.getCmdLen(keyHeader);
-            const key = try utils.getNextToken(tokens, &processedTokens, tokenCount);
+            const key = try utils.getNextToken(tokens, &processedTokens);
             try utils.checkTokenLen(key, keyLen);
-            const valHeader = try utils.getNextToken(tokens, &processedTokens, tokenCount);
+            const valHeader = try utils.getNextToken(tokens, &processedTokens);
             const valLen = try utils.getCmdLen(valHeader);
-            const val = try utils.getNextToken(tokens, &processedTokens, tokenCount);
+            const val = try utils.getNextToken(tokens, &processedTokens);
             try utils.checkTokenLen(val, valLen);
             const val_cpy = try alloc.*.dupe(u8, val);
             map.*.put(key, val_cpy) catch return "-ERROR\r\n";
-            print("map: {s}\n", .{map.*.get("lol").?});
             return "OK";
         } else if (std.ascii.eqlIgnoreCase(token, "GET")) {
-            const keyHeader = try utils.getNextToken(tokens, &processedTokens, tokenCount);
+            const keyHeader = try utils.getNextToken(tokens, &processedTokens);
             const keyLen = try utils.getCmdLen(keyHeader);
-            const key = try utils.getNextToken(tokens, &processedTokens, tokenCount);
+            const key = try utils.getNextToken(tokens, &processedTokens);
             try utils.checkTokenLen(key, keyLen);
             const maybeVal = map.*.get(key);
             if (maybeVal == null) {
@@ -64,7 +59,6 @@ fn handleClient(conn: *std.net.Server.Connection, map: *std.StringHashMap([]cons
             return;
         };
         try std.fmt.format(conn.stream.writer(), "${d}\r\n{s}\r\n", .{ res.len, res });
-        print("Res: {s}\n", .{res});
     }
     print("client handled, closing stream\n", .{});
 }
