@@ -36,6 +36,20 @@ pub fn handleECHOReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedTok
     return token;
 }
 
+const SetError = RequestSyntaxError || error{OutOfMemory};
+pub fn handleSETReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedTokens: *usize, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) SetError!void {
+    const keyHeader = try getNextToken(tokens, processedTokens);
+    const keyLen = try getCmdLen(keyHeader);
+    const key = try getNextToken(tokens, processedTokens);
+    try checkTokenLen(key, keyLen);
+    const valHeader = try getNextToken(tokens, processedTokens);
+    const valLen = try getCmdLen(valHeader);
+    const val = try getNextToken(tokens, processedTokens);
+    try checkTokenLen(val, valLen);
+    const val_cpy = try alloc.*.dupe(u8, val);
+    try map.*.put(key, val_cpy);
+}
+
 test "test parseHeader" {
     const t = std.testing;
     try t.expectError(RequestSyntaxError.MissingHeader, parseHeader(null));
