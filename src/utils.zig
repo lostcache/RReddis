@@ -118,3 +118,24 @@ test "test handleECHOReq" {
     const result1 = try handleECHOReq(&tokens1, &processedTokens1);
     try std.testing.expectEqualStrings("123", result1);
 }
+
+test "test handleSETReq" {
+    var aa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer _ = aa.deinit();
+    var alloc = aa.allocator();
+
+    var map = std.StringHashMap([]const u8).init(alloc);
+    defer {
+        map.clearAndFree();
+        map.deinit();
+    }
+
+    var tokens = std.mem.tokenizeSequence(u8, "$3 lol $4 plis", " ");
+    var processedTokens: usize = 0;
+
+    try handleSETReq(&tokens, &processedTokens, &map, &alloc);
+
+    const actualVal = map.get("lol");
+    try std.testing.expect(actualVal != null);
+    try std.testing.expectEqualStrings("plis", actualVal.?);
+}
