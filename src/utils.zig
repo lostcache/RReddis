@@ -137,10 +137,7 @@ test "test handleSETReq" {
     var alloc = aa.allocator();
 
     var map = std.StringHashMap([]const u8).init(alloc);
-    defer {
-        map.clearAndFree();
-        map.deinit();
-    }
+    defer map.deinit();
 
     var tokens = std.mem.tokenizeSequence(u8, "$3 lol $4 plis", " ");
     var processedTokens: usize = 0;
@@ -150,4 +147,24 @@ test "test handleSETReq" {
     const actualVal = map.get("lol");
     try std.testing.expect(actualVal != null);
     try std.testing.expectEqualStrings("plis", actualVal.?);
+}
+
+test "handleGETReq returns correct values" {
+    var aa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const alloc = aa.allocator();
+    defer aa.deinit();
+
+    var map = std.StringHashMap([]const u8).init(alloc);
+    defer map.deinit();
+
+    const key = "lol";
+    const value = "plis";
+    try map.put(key, value);
+
+    var tokens = std.mem.tokenizeSequence(u8, "$3 lol", " ");
+    var processedTokens: usize = 0;
+
+    const result = handleGETReq(&tokens, &processedTokens, &map) catch unreachable;
+
+    try std.testing.expectEqualStrings(value, result);
 }
