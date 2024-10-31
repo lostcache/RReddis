@@ -50,6 +50,18 @@ pub fn handleSETReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedToke
     try map.*.put(key, val_cpy);
 }
 
+pub fn handleGETReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedTokens: *usize, map: *std.StringHashMap([]const u8)) RequestSyntaxError![]const u8 {
+    const keyHeader = try getNextToken(tokens, processedTokens);
+    const keyLen = try getCmdLen(keyHeader);
+    const key = try getNextToken(tokens, processedTokens);
+    try checkTokenLen(key, keyLen);
+    const maybeVal = map.*.get(key);
+    if (maybeVal == null) {
+        return "$-1";
+    }
+    return maybeVal.?;
+}
+
 test "test parseHeader" {
     const t = std.testing;
     try t.expectError(RequestSyntaxError.MissingHeader, parseHeader(null));

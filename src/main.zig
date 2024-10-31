@@ -17,15 +17,7 @@ fn getResponse(tokens: *std.mem.TokenIterator(u8, .sequence), tokenCount: *const
             try utils.handleSETReq(tokens, &processedTokens, map, alloc);
             return "OK";
         } else if (std.ascii.eqlIgnoreCase(token, "GET")) {
-            const keyHeader = try utils.getNextToken(tokens, &processedTokens);
-            const keyLen = try utils.getCmdLen(keyHeader);
-            const key = try utils.getNextToken(tokens, &processedTokens);
-            try utils.checkTokenLen(key, keyLen);
-            const maybeVal = map.*.get(key);
-            if (maybeVal == null) {
-                return "$-1";
-            }
-            return maybeVal.?;
+            return try utils.handleGETReq(tokens, &processedTokens, map);
         }
     }
     return "-ERROR\r\n";
