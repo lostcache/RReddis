@@ -2,7 +2,12 @@ const std = @import("std");
 const print = std.debug.print;
 const utils = @import("utils.zig");
 
-fn getResponse(tokens: *std.mem.TokenIterator(u8, .sequence), tokenCount: *const usize, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) ![]const u8 {
+fn getResponse(
+    tokens: *std.mem.TokenIterator(u8, .sequence),
+    tokenCount: *const usize,
+    map: *std.StringHashMap([]const u8),
+    alloc: *std.mem.Allocator,
+) ![]const u8 {
     var processedTokens: usize = 0;
     while (processedTokens < tokenCount.*) {
         const headerToken: []const u8 = try utils.getNextToken(tokens, &processedTokens);
@@ -23,7 +28,11 @@ fn getResponse(tokens: *std.mem.TokenIterator(u8, .sequence), tokenCount: *const
     return "-ERROR\r\n";
 }
 
-fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) utils.RequestSyntaxError![]const u8 {
+fn handleRequest(
+    req: *[512]u8,
+    map: *std.StringHashMap([]const u8),
+    alloc: *std.mem.Allocator,
+) utils.RequestSyntaxError![]const u8 {
     var tokens: std.mem.TokenIterator(u8, .sequence) = std.mem.tokenizeSequence(u8, req, "\r\n");
     const cmdCount = try utils.parseHeader(tokens.next());
     const tokenCount = cmdCount * 2;
@@ -31,7 +40,11 @@ fn handleRequest(req: *[512]u8, map: *std.StringHashMap([]const u8), alloc: *std
     return res;
 }
 
-fn handleClient(conn: *std.net.Server.Connection, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) !void {
+fn handleClient(
+    conn: *std.net.Server.Connection,
+    map: *std.StringHashMap([]const u8),
+    alloc: *std.mem.Allocator,
+) !void {
     defer conn.stream.close();
     while (true) {
         var req: [512]u8 = undefined;

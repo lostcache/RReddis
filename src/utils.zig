@@ -1,6 +1,13 @@
 const std = @import("std");
 
-pub const RequestSyntaxError = error{ Overflow, InvalidCharacter, MissingHeader, HeaderParseError, InvalidCommand, InvalidRequest };
+pub const RequestSyntaxError = error{
+    Overflow,
+    InvalidCharacter,
+    MissingHeader,
+    HeaderParseError,
+    InvalidCommand,
+    InvalidRequest,
+};
 
 pub fn parseHeader(maybeToken: ?[]const u8) RequestSyntaxError!usize {
     if (maybeToken == null) return error.MissingHeader;
@@ -14,7 +21,10 @@ pub fn getCmdLen(cmdHeader: []const u8) RequestSyntaxError!usize {
     return std.fmt.parseInt(u8, cmdHeader[1..], 10) catch return error.InvalidCommand;
 }
 
-pub fn getNextToken(tokens: *std.mem.TokenIterator(u8, .sequence), processedTokens: *usize) RequestSyntaxError![]const u8 {
+pub fn getNextToken(
+    tokens: *std.mem.TokenIterator(u8, .sequence),
+    processedTokens: *usize,
+) RequestSyntaxError![]const u8 {
     const maybeToken = tokens.next();
     if (maybeToken == null) return error.InvalidRequest;
     processedTokens.* += 1;
@@ -28,7 +38,10 @@ pub fn checkTokenLen(token: []const u8, cmdLen: usize) RequestSyntaxError!void {
     return;
 }
 
-pub fn handleECHOReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedTokens: *usize) ![]const u8 {
+pub fn handleECHOReq(
+    tokens: *std.mem.TokenIterator(u8, .sequence),
+    processedTokens: *usize,
+) ![]const u8 {
     const headerToken = try getNextToken(tokens, processedTokens);
     const tokenLen = try getCmdLen(headerToken);
     const token = try getNextToken(tokens, processedTokens);
@@ -37,7 +50,12 @@ pub fn handleECHOReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedTok
 }
 
 const SetError = RequestSyntaxError || error{OutOfMemory};
-pub fn handleSETReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedTokens: *usize, map: *std.StringHashMap([]const u8), alloc: *std.mem.Allocator) SetError!void {
+pub fn handleSETReq(
+    tokens: *std.mem.TokenIterator(u8, .sequence),
+    processedTokens: *usize,
+    map: *std.StringHashMap([]const u8),
+    alloc: *std.mem.Allocator,
+) SetError!void {
     const keyHeader = try getNextToken(tokens, processedTokens);
     const keyLen = try getCmdLen(keyHeader);
     const key = try getNextToken(tokens, processedTokens);
@@ -50,7 +68,11 @@ pub fn handleSETReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedToke
     try map.*.put(key, val_cpy);
 }
 
-pub fn handleGETReq(tokens: *std.mem.TokenIterator(u8, .sequence), processedTokens: *usize, map: *std.StringHashMap([]const u8)) RequestSyntaxError![]const u8 {
+pub fn handleGETReq(
+    tokens: *std.mem.TokenIterator(u8, .sequence),
+    processedTokens: *usize,
+    map: *std.StringHashMap([]const u8),
+) RequestSyntaxError![]const u8 {
     const keyHeader = try getNextToken(tokens, processedTokens);
     const keyLen = try getCmdLen(keyHeader);
     const key = try getNextToken(tokens, processedTokens);
