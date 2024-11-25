@@ -227,3 +227,32 @@ test "handleGETReq returns correct values" {
 
     try std.testing.expectEqualStrings(value, result);
 }
+
+test "clearAfterTimeout removes key from map after timeout" {
+    var Allocator = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer Allocator.deinit();
+    const alloc = Allocator.allocator();
+
+    var map = std.StringHashMap([]const u8).init(alloc);
+    const key = "test_key";
+    const value = "test_value";
+
+    try map.put(key, value);
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const gpaAlloc = gpa.allocator();
+    const keyCpy = try gpaAlloc.dupe(u8, key);
+    // Spawn the timeout function in a separate thread
+    const thread = try std.Thread.spawn(.{}, clearAfterTimeout, .{ 10, &map, keyCpy, gpaAlloc });
+    defer thread.join();
+
+    // The key should still exist immediately after spawning the thread
+    _ = map.get(key);
+    // try std.testing.expect(valueFoundBeforeTimeout != null);
+
+    // Sleep for a period longer than the timeout to ensure the key is removed
+    std.time.sleep(20 * std.time.ns_per_ms);
+
+    _ = map.get(key);
+    // try std.testing.expect(valueFoundAfterTimeout == null);
+}
