@@ -49,23 +49,60 @@ pub fn handleECHOReq(
     return token;
 }
 
-const SetError = RequestSyntaxError || error{OutOfMemory};
+fn clearAfterTimeout(
+    timeOutMS: u32,
+    map: *std.StringHashMap([]const u8),
+    key: []u8,
+    gpaAlloc: std.mem.Allocator,
+) void {
+    defer gpaAlloc.free(key);
+    const timeOutNS = timeOutMS * 1_000_000;
+    std.time.sleep(timeOutNS);
+    _ = map.*.remove(key);
+}
+
+const SetError = RequestSyntaxError || error{
+    OutOfMemory,
+    ParseError,
+    ThreadQuotaExceeded,
+    SystemResources,
+    LockedMemoryLimitExceeded,
+    Unexpected,
+};
 pub fn handleSETReq(
     tokens: *std.mem.TokenIterator(u8, .sequence),
     processedTokens: *usize,
     map: *std.StringHashMap([]const u8),
     alloc: *std.mem.Allocator,
-) SetError!void {
+) !void {
     const keyHeader = try getNextToken(tokens, processedTokens);
     const keyLen = try getCmdLen(keyHeader);
     const key = try getNextToken(tokens, processedTokens);
     try checkTokenLen(key, keyLen);
+
     const valHeader = try getNextToken(tokens, processedTokens);
     const valLen = try getCmdLen(valHeader);
     const val = try getNextToken(tokens, processedTokens);
     try checkTokenLen(val, valLen);
+
     const val_cpy = try alloc.*.dupe(u8, val);
     try map.*.put(key, val_cpy);
+
+    const timeOutMSLenHeader = try getNextToken(tokens, processedTokens);
+    const timeOutMSLen = try getCmdLen(timeOutMSLenHeader);
+    const timeOutMSStr = try getNextToken(tokens, processedTokens);
+    try checkTokenLen(timeOutMSStr, timeOutMSLen);
+    const timeOutMS = try std.fmt.parseInt(u32, timeOutMSStr, 10);
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const gpaAlloc = gpa.allocator();
+    const keyCpy = try gpaAlloc.dupe(u8, key);
+    const threadHandle = try std.Thread.spawn(
+        .{},
+        clearAfterTimeout,
+        .{ timeOutMS, map, keyCpy, gpaAlloc },
+    );
+    threadHandle.detach();
 }
 
 pub fn handleGETReq(
